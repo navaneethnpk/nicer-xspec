@@ -1,8 +1,0 @@
-/home/student/GitHome/nicer-xspec/data
-/home/student/GitHome/nicer-xspec/data5
-/home/student/GitHome/nicer-xspec/data6
-/home/student/GitHome/nicer-xspec/data575
-/home/student/GitHome/nicer-xspec/data5616
-/home/student/GitHome/nicer-xspec/data1123
-/home/student/GitHome/nicer-xspec/data7474
-/home/student/GitHome/nicer-xspec/data455

@@ -5,14 +5,15 @@ TODO:
 [x] Xspec function for model-2 (powerlaw)
 [x] Xspec function for model-3 (broken powerlaw)
 [x] Read the log file and make a json/yaml file for fit statistics
-[] make the code for both single obs analysis and a list of obs
-[] Make plot from the spectrum and ratio data
+[x] make the code for both single obs analysis and a list of obs
+[] Make plot from the spectrum and ratio data - seperate code
+[] Code to read the YAML file - seperate code
 [] generalise the code such that you can use it on any source. (make nH, z etc user inputs - no source specific data hardcoded)
 [] For Xspec models, many lines are repeating/same. How to make it short? Class?
 BUGS:
-[] Ignoring bad channel only working in AllData
+[x] Ignoring bad channel only working in AllData
 [x] Only spectrum plot data is able to save. The ratio plot data is not able to save
-[] the xspec three models are running continuously. So, the spectrum is getting added to next session. How to exit xspec after doing on model.
+[x] the xspec three models are running continuously. So, the spectrum is getting added to next session. How to exit xspec after doing on model.
 """
 
 import re
@@ -23,6 +24,7 @@ import numpy as np
 import argparse
 from xspec import *
 import matplotlib.pyplot as plt
+from collections import OrderedDict
 
 def check_file(filepath, pattern):
 	"""
@@ -32,9 +34,6 @@ def check_file(filepath, pattern):
 		pattern (str): File pattern (e.g., '*.rmf').
 	Returns:
 		str: Path to the matching file if exactly one is found.
-	Raises:
-		ValueError: If more than one file matches.
-		FileNotFoundError: If no file matches.
 	"""
 	file_match = glob.glob(os.path.join(filepath, pattern))
 	if len(file_match) == 1:
@@ -68,7 +67,7 @@ def model_logpar(pha, rmf, bkg, opath):
 		s1 = Spectrum(pha)
 		s1.response = rmf
 		s1.background = bkg
-		# s1.ignore("bad")
+		AllData.ignore("bad")
 		s1.ignore("**-0.3,10.0-**")
 
 		# Define model and its parameters
@@ -106,11 +105,12 @@ def model_logpar(pha, rmf, bkg, opath):
 		np.savetxt(f"{opath}/logpar_ratio.csv", dataR, delimiter=",", header="xVals,yVals,yErrs", comments="")
 
 		Xset.save(f"{opath}/logpar_model.xcm", info='m')
+		AllData.clear()
 		Xset.closeLog()
 
 		return True
 	except Exception as e:
-		print(f"Error: An error in Xspec analysis: {e}")
+		print(f"> Error: An error in Xspec analysis: {e}")
 		return False
 
 def model_powerlaw(pha, rmf, bkg, opath):
@@ -128,7 +128,7 @@ def model_powerlaw(pha, rmf, bkg, opath):
 		s1 = Spectrum(pha)
 		s1.response = rmf
 		s1.background = bkg
-		# s1.ignore("bad")
+		AllData.ignore("bad")
 		s1.ignore("**-0.3,10.0-**")
 
 		m1 = Model("tbabs*powerlaw")
@@ -162,11 +162,12 @@ def model_powerlaw(pha, rmf, bkg, opath):
 		np.savetxt(f"{opath}/plaw_ratio.csv", dataR, delimiter=",", header="xVals,yVals,yErrs", comments="")
 
 		Xset.save(f"{opath}/plaw_model.xcm", info='m')
+		AllData.clear()
 		Xset.closeLog()
 
 		return True
 	except Exception as e:
-		print(f"Error: An error in Xspec analysis: {e}")
+		print(f"> Error: An error in Xspec analysis: {e}")
 		return False
 
 def model_bknpowerlaw(pha, rmf, bkg, opath):
@@ -184,7 +185,7 @@ def model_bknpowerlaw(pha, rmf, bkg, opath):
 		s1 = Spectrum(pha)
 		s1.response = rmf
 		s1.background = bkg
-		# s1.ignore("bad")
+		AllData.ignore("bad")
 		s1.ignore("**-0.3,10.0-**")
 
 		m1 = Model("tbabs*bknpower")
@@ -219,18 +220,51 @@ def model_bknpowerlaw(pha, rmf, bkg, opath):
 		np.savetxt(f"{opath}/bknpl_ratio.csv", dataR, delimiter=",", header="xVals,yVals,yErrs", comments="")
 
 		Xset.save(f"{opath}/bknpl_model.xcm", info='m')
+		AllData.clear()
 		Xset.closeLog()
 
 		return True
 	except Exception as e:
-		print(f"Error: An error in Xspec analysis: {e}")
+		print(f"> Error: An error in Xspec analysis: {e}")
 		return False
 
-def read_xspec_log(loglist):
+def get_mparameters(lines, pnames):
 	"""
+	Extracts parameter values and errors from the lines.
+	Args:
+		lines (list): Lines of text to search for parameters.
+		pnames (list): List of parameter names to extract.
+	Returns:
+		OrderedDict: Extracted parameter data with value and error.
 	"""
-	model_data = {}
 	num_pattern = r"\b\d+\.\d+(?:[eE][+-]?\d{2})?\b"
+	para_data = OrderedDict()
+
+	for param in pnames:
+		line = next((line for line in lines if param in line), None)
+		if line:
+			values = re.findall(num_pattern, line)
+			para_data[param] = {"value": values[0], "error": values[1] if len(values) > 1 else None}
+		else:
+			print(f"> Warning: Parameter '{param}' not found in the lines.")
+
+	return para_data
+
+def read_xspec_log(loglist, opath):
+	"""
+	Reads XSPEC log files, extracts model parameters, and writes them to a YAML file.
+	Args:
+		loglist (list): List of paths to XSPEC log files.
+		opath (str): Path to save the output YAML file.
+	Returns:
+		None. Writes an ordered YAML file with extracted parameters.
+	"""
+	model_data = OrderedDict()
+	models = {
+		"logpar": ["alpha", "beta", "pivotE", "norm"],
+		"powerlaw": ["PhoIndex", "norm"],
+		"bknpower": ["PhoIndx1", "BreakE", "PhoIndx2", "norm"]}
+
 	for lfile in loglist:
 		with open(lfile, 'r') as file:
 			lcontent = file.read()
@@ -238,53 +272,14 @@ def read_xspec_log(loglist):
 		sections = re.split(r"={10,}", lcontent)
 		mcontent = sections[-1]
 
-		if "logpar" in mcontent:
-			lpm_lines = mcontent.strip().split('\n')
-			lpm_par1_line = [line for line in lpm_lines if "alpha" in line]
-			lpm_par1_vals = re.findall(num_pattern, lpm_par1_line[0])
-			lpm_par2_line = [line for line in lpm_lines if "beta" in line]
-			lpm_par2_vals = re.findall(num_pattern, lpm_par2_line[0])
-			lpm_par3_line = [line for line in lpm_lines if "pivotE" in line]
-			lpm_par3_vals = re.findall(num_pattern, lpm_par3_line[0])
-			lpm_par4_line = [line for line in lpm_lines if "norm" in line]
-			lpm_par4_vals = re.findall(num_pattern, lpm_par4_line[0])
+		for model, param in models.items():
+			if model in mcontent:
+				lines = mcontent.strip().split('\n')
+				model_data[model] = get_mparameters(lines, param)
+				break
 
-			model_data["logpar"] = {
-				"alpha": {"value": lpm_par1_vals[0], "error": lpm_par1_vals[1] if len(lpm_par1_vals) > 1 else None},
-				"beta": {"value": lpm_par2_vals[0], "error": lpm_par2_vals[1] if len(lpm_par2_vals) > 1 else None},
-				"pivotE": {"value": lpm_par3_vals[0], "error": lpm_par3_vals[1] if len(lpm_par3_vals) > 1 else None},
-				"norm": {"value": lpm_par4_vals[0], "error": lpm_par4_vals[1] if len(lpm_par4_vals) > 1 else None}}
-		elif "powerlaw" in mcontent:
-			pl_lines = mcontent.strip().split('\n')
-			pl_par1_line = [line for line in pl_lines if "PhoIndex" in line]
-			pl_par1_vals = re.findall(num_pattern, pl_par1_line[0])
-			pl_par2_line = [line for line in pl_lines if "norm" in line]
-			pl_par2_vals = re.findall(num_pattern, pl_par2_line[0])
-
-			model_data["powerlaw"] = {
-				"PhoIndex": {"value": pl_par1_vals[0], "error": pl_par1_vals[1] if len(pl_par1_vals) > 1 else None},
-				"norm": {"value": pl_par2_vals[0], "error": pl_par2_vals[1] if len(pl_par2_vals) > 1 else None}}
-		elif "bknpower" in mcontent:
-			bkn_lines = mcontent.strip().split('\n')
-			bkn_par1_line = [line for line in bkn_lines if "PhoIndx1" in line]
-			bkn_par1_vals = re.findall(num_pattern, bkn_par1_line[0])
-			bkn_par2_line = [line for line in bkn_lines if "BreakE" in line]
-			bkn_par2_vals = re.findall(num_pattern, bkn_par2_line[0])
-			bkn_par3_line = [line for line in bkn_lines if "PhoIndx2" in line]
-			bkn_par3_vals = re.findall(num_pattern, bkn_par3_line[0])
-			bkn_par4_line = [line for line in bkn_lines if "norm" in line]
-			bkn_par4_vals = re.findall(num_pattern, bkn_par4_line[0])
-
-			model_data["bknpower"] = {
-				"PhoIndx1": {"value": bkn_par1_vals[0], "error": bkn_par1_vals[1] if len(bkn_par1_vals) > 1 else None},
-				"BreakE": {"value": bkn_par2_vals[0], "error": bkn_par2_vals[1] if len(bkn_par2_vals) > 1 else None},
-				"PhoIndx2": {"value": bkn_par3_vals[0], "error": bkn_par3_vals[1] if len(bkn_par3_vals) > 1 else None},
-				"norm": {"value": bkn_par4_vals[0], "error": bkn_par4_vals[1] if len(bkn_par4_vals) > 1 else None}}		
-
-	# Save the data to a YAML file
-	with open("model_parameters.yaml", 'w') as file:
-		yaml.dump(model_data, file)
-
+	with open(f"{opath}/model_params.yaml", 'w') as file:
+		yaml.dump(model_data, file, sort_keys=False, default_flow_style=False)
 
 	return
 
@@ -294,8 +289,6 @@ if __name__ == "__main__":
 	parser.add_argument('ip_path', type=str, help='Path to the spectrum data directory or a text file with paths')
 	args = parser.parse_args()
 	ip_path = args.ip_path
-
-	out_path = ip_path
 
 	# Checking user input
 	try:
@@ -307,35 +300,39 @@ if __name__ == "__main__":
 		else:
 			raise ValueError(f"'{ip_path}' is neither a valid directory nor a file containing paths.")
 	except ValueError as e:
-		print(f"Error: {e}")
+		print(f"> Error: {e}")
 		exit(1)
 
 	# Running Xspec analysis
 	for fpath in file_paths:
-		"""
+		print(f"\n>>> Running Xspec analysis for Obs: {fpath}")
+
 		try: 
 			src_file = check_file(fpath, "*src.pha")
 			rmf_file = check_file(fpath, "*.rmf")
 			bkg_file = check_file(fpath, "*bkg.xcm")
 
 			# Xspec analysis
-			model1 = model_logpar(src_file, rmf_file, bkg_file, out_path)
-			print(f"model1: {model1}")
-			model2 = model_powerlaw(src_file, rmf_file, bkg_file, out_path)
-			print(f"model2: {model2}")
-			model3 = model_bknpowerlaw(src_file, rmf_file, bkg_file, out_path)
-			print(f"model3: {model3}")
+			model1 = model_logpar(src_file, rmf_file, bkg_file, fpath)
+			model2 = model_powerlaw(src_file, rmf_file, bkg_file, fpath)
+			model3 = model_bknpowerlaw(src_file, rmf_file, bkg_file, fpath)
 		except (ValueError, FileNotFoundError) as e:
-			print(f"Error: {e}")
+			print(f"> Error: {e}")
 			continue
-		"""
+
+		if model1 and model2 and model3:
+			print("> Xspec analysis are successful.")
+		else:
+			print("> Error: XSPEC analysis failed. Check!")
+
 		# Reading Xspec log files
 		try:
 			log_files = glob.glob(os.path.join(fpath, "*xspec.log"))
 			if len(log_files) == 3:
-				read_xspec_log(log_files)
+				read_xspec_log(log_files, fpath)
+				print("> The output files are created.")
 			else:
 				raise ValueError(f"Expected 3 Xspec log files in the directory '{fpath}', but found {len(log_files)}.")
 		except ValueError as e:
-			print(f"Error: {e}")
+			print(f"> Error: {e}")
 			continue 
