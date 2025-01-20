@@ -4,9 +4,9 @@ TODO:
 [x] Xspec function for model-1 (log parabola)
 [x] Xspec function for model-2 (powerlaw)
 [x] Xspec function for model-3 (broken powerlaw)
-[] Read the log file and make a json/yaml file for fit statistics
-[] Make plot from the spectrum and ratio data
+[x] Read the log file and make a json/yaml file for fit statistics
 [] make the code for both single obs analysis and a list of obs
+[] Make plot from the spectrum and ratio data
 [] generalise the code such that you can use it on any source. (make nH, z etc user inputs - no source specific data hardcoded)
 [] For Xspec models, many lines are repeating/same. How to make it short? Class?
 BUGS:
@@ -21,11 +21,11 @@ import argparse
 from xspec import *
 import matplotlib.pyplot as plt
 
-def check_file(fpath, pattern):
+def check_file(filepath, pattern):
 	"""
 	Checks if exactly one file matching the given pattern exists in the specified directory.
 	Args:
-		fpath (str): Directory path to search.
+		filepath (str): Directory path to search.
 		pattern (str): File pattern (e.g., '*.rmf').
 	Returns:
 		str: Path to the matching file if exactly one is found.
@@ -33,7 +33,7 @@ def check_file(fpath, pattern):
 		ValueError: If more than one file matches.
 		FileNotFoundError: If no file matches.
 	"""
-	file_match = glob.glob(os.path.join(fpath, pattern))
+	file_match = glob.glob(os.path.join(filepath, pattern))
 	if len(file_match) == 1:
 		return file_match[0]
 	elif len(file_match) > 1:
@@ -226,27 +226,41 @@ def model_bknpowerlaw(pha, rmf, bkg, opath):
 
 if __name__ == "__main__":
 	# Getting path of the spectrum files as user input
-	parser = argparse.ArgumentParser(description="Provide the file path for the spectrum data.")
-	parser.add_argument('file_path', type=str, help='Path to the data files')
+	parser = argparse.ArgumentParser(description="Provide the file path or a text file containing paths for the spectrum data.")
+	parser.add_argument('ip_path', type=str, help='Path to the spectrum data directory or a text file with paths')
 	args = parser.parse_args()
-	file_path = args.file_path
+	ip_path = args.ip_path
 
-	# out_path = file_path
+	# out_path = ip_path
 	out_path = "/home/student/GitHome/nicer-xspec/outp"
 
-	# Checking files are present or not
-	try: 
-		src_file = check_file(file_path, "*src.pha")
-		rmf_file = check_file(file_path, "*.rmf")
-		bkg_file = check_file(file_path, "*bkg.xcm")
-
-		# Xspec analysis
-		model1 = model_logpar(src_file, rmf_file, bkg_file, out_path)
-		print(f"model1: {model1}")
-		model2 = model_powerlaw(src_file, rmf_file, bkg_file, out_path)
-		print(f"model2: {model2}")
-		model3 = model_bknpowerlaw(src_file, rmf_file, bkg_file, out_path)
-		print(f"model3: {model3}")
-	except (ValueError, FileNotFoundError) as e:
+	# Checking user input
+	try:
+		if os.path.isdir(ip_path):
+			file_paths = [ip_path]
+		elif os.path.isfile(ip_path):
+			with open(ip_path, 'r') as file:
+				file_paths = [line.strip() for line in file if line.strip()]
+		else:
+			raise ValueError(f"'{ip_path}' is neither a valid directory nor a file containing paths.")
+	except ValueError as e:
 		print(f"Error: {e}")
 		exit(1)
+
+	# Running Xspec analysis
+	for fpath in file_paths:
+		try: 
+			src_file = check_file(fpath, "*src.pha")
+			rmf_file = check_file(fpath, "*.rmf")
+			bkg_file = check_file(fpath, "*bkg.xcm")
+
+			# Xspec analysis
+			model1 = model_logpar(src_file, rmf_file, bkg_file, out_path)
+			print(f"model1: {model1}")
+			model2 = model_powerlaw(src_file, rmf_file, bkg_file, out_path)
+			print(f"model2: {model2}")
+			model3 = model_bknpowerlaw(src_file, rmf_file, bkg_file, out_path)
+			print(f"model3: {model3}")
+		except (ValueError, FileNotFoundError) as e:
+			print(f"Error: {e}")
+			exit(1)
