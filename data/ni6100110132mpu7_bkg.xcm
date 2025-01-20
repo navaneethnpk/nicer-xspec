@@ -1,0 +1,274 @@
+# 
+# NICER Background Loader - this script creates NICER SCORPEON
+# background model sources and sets the parameters.
+# save the chatter level then set to a low chatter
+
+# set nicer_chatlevel [scan [tcloutr chatter] "%d"]
+# chatter 0
+#
+# PLEASE NOTE: this script has been customized for a particular
+# observation.  It may not be appropriate for a generic observation.
+#
+# Input variables
+#   $nicer_bkgspect = which spectrum number to attach background
+#      model to
+#
+# Example:
+#   data 1:1 /home/user/writable/6100110132-output/ni6100110132mpu7_sr.pha
+#   resp 1:1 /home/user/writable/6100110132-output/ni6100110132mpu7.rmf
+#   arf  1:1 myarf.arf
+#   set nicer_bkgspect 1
+#   @/home/user/writable/6100110132-output/ni6100110132mpu7_bg.xcm
+#
+# 
+set nicer_srcrmf "/home/user/writable/6100110132-output/ni6100110132mpu7.rmf"
+set nicer_skyarf "/home/user/writable/6100110132-output/ni6100110132mpu7_sk.arf"
+set nicer_diagrmf "/home/user/writable/6100110132-output/ni6100110132mpu7_bg.rmf"
+
+# Be sure at least one spectrum is defined
+tclout datagrp
+if {$xspec_tclout == "0"} {
+  puts "ERROR: you must load at least one data set before running this script"
+  return
+}
+
+# Make sure nicer_bkgspect exists
+if {! [info exists nicer_bkgspect]} {
+  puts "ERROR: you must define nicer_bkgspect each time you try to create a background"
+  return
+}
+
+set nicer_bkgspect0 $nicer_bkgspect
+unset nicer_bkgspect
+
+# Retrieve the data group for the requested spectrum
+if {[catch {tclout datagrp $nicer_bkgspect0} errmsg]} {
+  puts "
+
+
+  ERROR: could not find spectrum $nicer_bkgspect0; have you loaded it yet?
+  Make sure nicer_bkgspect is set to the name of the loaded spectrum"
+  return
+}
+set nicer_datagrp $xspec_tclout
+# Make sure no background file is in use with this spectrum file
+back $nicer_bkgspect0 none
+
+# Make sure "nxb" and "sky" models are already defined
+tclout modnames
+set nicer_modnames $xspec_tclout
+
+if { ! [info exists niscorpv23_mdefine ] } {
+   /*
+   # */
+   # Model was not defined, so define them
+	# Basic building blocks ======================  V23!!!!
+	mdefine thresh 0.5*erfc(-(E-p1)/p2/1.4142136) : mul 
+	# Marshalling function that helps us define the order of parameters in
+	# the order that we want to define it, rather than normal left-to-right order
+	# of the equation
+	mdefine niscorpv23_pmarshal20 (a*b*c*d*f* g*h*i*j*k* l*m*n*o*p* q*r*s*t*u*0) 
+	mdefine niscorpv23_dummy 0 
+	
+	# Fluorescent line complexes ======================
+	mdefine niscorpv23_ok (gaussian(0.525+offset,sigma)) : add 
+	mdefine niscorpv23_sik (gaussian(1.740+offset,sigma)+gaussian(1.83594+offset,sigma)*0.02486) : add 
+	mdefine niscorpv23_alk (gaussian(1.4867+offset,sigma)+gaussian(1.557+offset,sigma)*0.01548) : add 
+	mdefine niscorpv23_nik (gaussian(7.4782+offset,sigma)*0.66313+gaussian(7.4609+offset,sigma)*0.33687+gaussian(8.2647+offset,sigma)*0.12746) : add 
+	mdefine niscorpv23_aula (gaussian(9.7133+offset,sigma)*0.89788+gaussian(9.6280+offset,sigma)*0.10212+gaussian(8.4930+offset,sigma)*0.0505+gaussian(10.3070+offset,sigma)*0.008284) : add 
+	mdefine niscorpv23_aulb (gaussian(11.4400+offset,sigma)*0.30135+gaussian(11.5847+offset,sigma)*0.19735+gaussian(11.6080+offset,sigma)*0.02576+gaussian(11.2030+offset,sigma)*0.02226+gaussian(11.9140+offset,sigma)*0.021935+gaussian(11.1580+offset,sigma)*0.012489) : add 
+	mdefine niscorpv23_aulg (gaussian(13.3790+offset,sigma)*0.06298+gaussian(13.7070+offset,sigma)*0.005781+gaussian(13.8070+offset,sigma)*0.00727+gaussian(14.2970+offset,sigma)*0.002341+gaussian(12.972+offset,sigma)*0.002131+gaussian(13.7280+offset,sigma)*0.006916) : add 
+	mdefine niscorpv23_aum (gaussian(2.1220+offset,sigma)+gaussian(2.2034+offset,sigma)*0.55845+gaussian(2.572+offset,sigma)*0.04986+gaussian(1.6597+offset,sigma)*0.0432) : add 
+	
+	# Low energy electron component ======================
+	mdefine niscorpv23_leel thresh(thresh_ecent,thresh_ewid)*powerlaw(pl_ind)*highecut(cutoff_ecent,cutoff_ewid)*pow_norm : add 
+	mdefine niscorpv23_leelv 0.611363*1.17434*0.2478*niscorpv23_leel(thresh_offset+0.248,0.0425,0.0,1.7026,6.3495,2.941e-3) : add 
+	
+	# Sky (astrophysical) components ======================
+	# detailed
+	mdefine niscorpv23_sky TBabs(gal_nh)*(powerlaw(cxb_ind)*cxb_norm+apec(halo_kT,halo_abund,0)*2455.0*halo_em)+(apec(lhb_kT,1,0)*2455.0*lhb_em) : add 
+	mdefine niscorpv23_sky_sf thresh(0.572,0.110)*niscorpv23_sky(gal_nh,cxb_ind,cxb_norm,halo_kT,halo_abund,halo_em,lhb_kT,lhb_em) : add 
+	
+	# SWCX and neutral oxygen
+	mdefine niscorpv23_swcx (gaussian(0.533,swcx_sigma)*ok_norm+gaussian(0.574,swcx_sigma)*ovii_norm+gaussian(0.654,swcx_sigma)*oviii_norm+gaussian(0.898,swcx_sigma)*neix_norm) 
+	
+	# Constant component ======================
+	mdefine niscorpv23_con (thresh(thresh_ecent,thresh_ewid)*powerlaw(pl_ind)*pl_norm) 
+	mdefine niscorpv23_conv (niscorpv23_con(thresh_offset+0.248,0.0425,0.4916,1.034e-3) ) 
+	
+	# Cosmic ray (COR) components ======================
+	# COR SF
+	mdefine niscorpv23_cor_sf thresh(thresh_ecent,thresh_ewid)*(bknpower(pl_ind1,pl_ebreak,pl_ind2)*pl_norm + niscorpv23_alk(0,sqrt(sigma^2+sik_sigma^2))*alk_norm + niscorpv23_sik(0,sqrt(sigma^2+sik_sigma^2))*sik_norm + niscorpv23_aum(0,sqrt(sigma^2+sik_sigma^2))*aum_norm+niscorpv23_nik(0,sqrt(sigma^2+au_sigma^2))*nik_norm + niscorpv23_aula(0,sqrt(sigma^2+au_sigma^2))*aula_norm + niscorpv23_aulb(0,sqrt(sigma^2+au_sigma^2))*aulb_norm + niscorpv23_aulg(0,sqrt(sigma^2+au_sigma^2))*aulg_norm) : add 
+	mdefine niscorpv23_cor_sfv niscorpv23_cor_sf(0.562,0.141,0.0,1.945,0.944618,2.413e-3,sigma,7.21524E-02,0.000478216*alk_corr,0.000241362*sik_corr,1.55386e-08*aum_corr,7.21524E-02,0.000132635*nik_corr,0.000284644*aula_corr,0.00057175*aulb_corr,0.000400915*aulg_corr) 
+	
+	# COR SO
+	mdefine niscorpv23_cor_so thresh(lothresh_ecent,lothresh_ewid)*bknpower(pl_ind1,pl_ebreak,pl_ind2)*pl_norm*thresh(hithresh_ecent,hithresh_ewid) + niscorpv23_cor_sf(lothresh_ecent,lothresh_ewid,0.0,1.945,0.944618,2.413e-3,0,0,0,0,0,0,0,0,0,0)*thresh(0.562,-0.141) 
+	mdefine niscorpv23_cor_so1v niscorpv23_cor_so(thresh_offset+0.248,0.0425,1.40807,2.0,1.40807,0.0101323,2.19984,-0.497)*fract 
+	mdefine niscorpv23_cor_so2v niscorpv23_cor_so(thresh_offset+0.248,0.0425,1.11929,2.0,1.11929,0.0107302,4.7663,-0.723)*fract 
+	
+	# Trapped electron component ======================
+	mdefine niscorpv23_trel thresh(thresh_ecent,thresh_ewid)*(bkn2pow(pl_ind1,pl_ebreak1,pl_ind2,pl_ebreak2,pl_ind3)*pow_norm+ niscorpv23_alk(0,sqrt(sigma^2+sik_sigma^2))*alk_norm + niscorpv23_sik(0,sqrt(sigma^2+sik_sigma^2))*sik_norm + niscorpv23_aum(0,sqrt(sigma^2+sik_sigma^2))*aum_norm+niscorpv23_nik(0,sqrt(sigma^2+au_sigma^2))*nik_norm + niscorpv23_aula(0,sqrt(sigma^2+au_sigma^2))*aula_norm + niscorpv23_aulb(0,sqrt(sigma^2+au_sigma^2))*aulb_norm + niscorpv23_aulg(0,sqrt(sigma^2+au_sigma^2))*aulg_norm) : add 
+	mdefine niscorpv23_trelv niscorpv23_trel(thresh_offset+0.248,0.0425,0.285,0.735,0.030,6.300,-0.168,3.035e-3,sigma,3.81391E-02,0.000105263*alk_corr,0.000468966*sik_corr,0.0,3.81391E-02,0.0,4.11715e-05*aula_corr,9.9403e-05*aulb_corr,0.00020393*aulg_corr) 
+	
+	
+	# SAA  ======================
+	# SF
+	mdefine niscorpv23_saa_sf thresh(thresh_ecent,thresh_ewid)*(bkn2pow(pl_ind1,pl_ebreak1,pl_ind2,pl_ebreak2,pl_ind3)*pl_norm + niscorpv23_alk(alk_offset,sqrt(sigma^2+sik_sigma^2))*alk_norm + niscorpv23_sik(0,sqrt(sigma^2+sik_sigma^2))*sik_norm + niscorpv23_aum(aum_offset,sqrt(sigma^2+sik_sigma^2))*aum_norm+niscorpv23_nik(nik_offset,sqrt(sigma^2+au_sigma^2))*nik_norm + niscorpv23_aula(au_offset,sqrt(sigma^2+au_sigma^2))*aula_norm + niscorpv23_aulb(au_offset,sqrt(sigma^2+au_sigma^2))*aulb_norm + niscorpv23_aulg(au_offset,sqrt(sigma^2+au_sigma^2))*aulg_norm + lorentz(1.4867+alk_offset,sqrt(sigma^2+(sik_lsigma*sik_sigma)^2))*alk_norm*alk_lnorm + lorentz(1.740,sqrt(sigma^2+(sik_lsigma*sik_sigma)^2))*sik_norm*sik_lnorm) : add 
+	mdefine niscorpv23_saa_sfv niscorpv23_saa_sf(0.600,0.165,0,2.0579,1.132,2.29574,0.30469,9.1530e-4,-0.0047,sigma,0.040,3.89127E-04*alk_corr,1.45036E-04*sik_corr,0.0113,2.47310E-05*aum_corr,-0.0125,0.0773,1.94578E-04*nik_corr,-0.0088,2.61796E-04*aula_corr,4.99389E-04*aulb_corr,2.08535E-04*aulg_corr,5.322,0.621,0.598) : add 
+	
+	# SO
+	mdefine niscorpv23_saa_so thresh(lothresh_ecent,lothresh_ewid)*(bknpower(pl_ind1,pl_ebreak,pl_ind2)*pl_norm*thresh(hithresh_ecent,hithresh_ewid)) + thresh(sf_lothresh_ecent,sf_lothresh_ewid)*powerlaw(sf_pl_ind)*sf_pl_norm*thresh(sf_hithresh_ecent,sf_hithresh_ewid) 
+	mdefine niscorpv23_saa_so1v niscorpv23_saa_so(thresh_offset+0.428,0.102,2.208,1.008,1.857,0.0114189,2.341,-0.514,0.248,0.0967,0,0.000915298,0.600,-0.165)*fract 
+	mdefine niscorpv23_saa_so2v niscorpv23_saa_so(thresh_offset+0.428,0.0963,1.662,1.723,1.079,0.0108093,4.891,-1.0726,0.248,0.0967,0,0.000915298,0.600,-0.165)*fract 
+	
+	
+	# Precipitating Electrons  ======================
+	mdefine niscorpv23_prel thresh(lothresh_ecent,lothresh_ewid)*(bkn2pow(pl_ind1,pl_ebreak1,pl_ind2,pl_ebreak2,pl_ind3)*pow_norm+ niscorpv23_ok(0,sqrt(sigma^2+sik_sigma^2))*ok_norm+niscorpv23_alk(0,sqrt(sigma^2+sik_sigma^2))*alk_norm + niscorpv23_sik(0,sqrt(sigma^2+sik_sigma^2))*sik_norm + niscorpv23_aum(0,sqrt(sigma^2+sik_sigma^2))*aum_norm+niscorpv23_nik(0,sqrt(sigma^2+au_sigma^2))*nik_norm + niscorpv23_aula(0,sqrt(sigma^2+au_sigma^2))*aula_norm + niscorpv23_aulb(0,sqrt(sigma^2+au_sigma^2))*aulb_norm + niscorpv23_aulg(0,sqrt(sigma^2+au_sigma^2))*aulg_norm)*thresh(hithresh_ecent,hithresh_ewid) : add 
+	mdefine niscorpv23_prelv niscorpv23_prel(thresh_offset+0.243,0.032,-0.0570,2.700,-0.392,4.715,-0.900+prel_hiindoff,0.08238,sigma,0.0395,7.17314E-04,7.45083E-04*alk_corr,6.34077E-04*sik_corr,9.39714E-05*aum_corr,0.081,0,6e-4*aula_corr,2e-3*aulb_corr,5e-3*aulg_corr,9.7966+prel_hicutoff,-6.84515) 
+	
+	# Noise peak (gaussian)  ======================
+	mdefine niscorpv23_noise (gaussian(noise_ecent,noise_sigma)) 
+	
+	# Master assemblies
+	# Total SO+SF
+	mdefine niscorpv23_nxb_det (niscorpv23_pmarshal20(thresh_offset,batch1_frac,con_norm,cor_norm,trel_norm,leel_norm,prel_norm,saa_norm,sigma,cor_so_corr,saa_so_corr,alk_corr,sik_corr,aum_corr,nik_corr,aula_corr,aulb_corr,aulg_corr,prel_hiindoff,prel_hicutoff) + niscorpv23_conv(thresh_offset)*con_norm + niscorpv23_leelv(thresh_offset)*leel_norm + cor_norm*(niscorpv23_cor_sfv(sigma,alk_corr,sik_corr,aum_corr,nik_corr,aula_corr,aulb_corr,aulg_corr) + cor_so_corr*(niscorpv23_cor_so1v(thresh_offset,batch1_frac) + niscorpv23_cor_so2v(thresh_offset,1.0-batch1_frac))) + niscorpv23_trelv(thresh_offset,sigma,alk_corr,sik_corr,aula_corr,aulb_corr,aulg_corr)*trel_norm + niscorpv23_prelv(thresh_offset,prel_hiindoff,sigma,alk_corr,sik_corr,aum_corr,aula_corr,aulb_corr,aulg_corr,prel_hicutoff)*prel_norm + saa_norm*(niscorpv23_saa_sfv(sigma,alk_corr,sik_corr,aum_corr,nik_corr,aula_corr,aulb_corr,aulg_corr) + saa_so_corr*(niscorpv23_saa_so1v(thresh_offset,batch1_frac)+niscorpv23_saa_so2v(thresh_offset,1-batch1_frac))) ) : add 
+	
+	# Simplified NXB model (all corrections and adjustments set to nominal values)
+	mdefine niscorpv23_nxb niscorpv23_nxb_det(thresh_offset,batch1_frac,con_norm,cor_norm,trel_norm,leel_norm,prel_norm,saa_norm,0,1,1,1,1,1,1,1,1,1,0,0) 
+	
+	# SF
+	mdefine niscorpv23_nxb_sf (niscorpv23_pmarshal20(thresh_offset,batch1_frac,con_norm,cor_norm,trel_norm,leel_norm,prel_norm,saa_norm,sigma,cor_so_corr,saa_so_corr,alk_corr,sik_corr,aum_corr,nik_corr,aula_corr,aulb_corr,aulg_corr,prel_hiindoff,prel_hicutoff) + (niscorpv23_conv(thresh_offset)*con_norm + niscorpv23_leelv(thresh_offset)*leel_norm + niscorpv23_trelv(thresh_offset,sigma,alk_corr,sik_corr,aula_corr,aulb_corr,aulg_corr)*trel_norm + niscorpv23_prelv(thresh_offset,prel_hiindoff,sigma,alk_corr,sik_corr,aum_corr,aula_corr,aulb_corr,aulg_corr,prel_hicutoff)*prel_norm)*thresh(0.572,0.110) + cor_norm*(niscorpv23_cor_sfv(sigma,alk_corr,sik_corr,aum_corr,nik_corr,aula_corr,aulb_corr,aulg_corr)) + saa_norm*(niscorpv23_saa_sfv(sigma,alk_corr,sik_corr,aum_corr,nik_corr,aula_corr,aulb_corr,aulg_corr))) : add 
+	# SO
+	mdefine niscorpv23_so (niscorpv23_pmarshal20(thresh_offset,batch1_frac,con_norm,cor_norm,trel_norm,leel_norm,prel_norm,saa_norm,sigma,cor_so_corr,saa_so_corr,alk_corr,sik_corr,aum_corr,nik_corr,aula_corr,aulb_corr,aulg_corr,prel_hiindoff,prel_hicutoff) + (niscorpv23_conv(thresh_offset)*con_norm + niscorpv23_leelv(thresh_offset)*leel_norm + niscorpv23_trelv(thresh_offset,sigma,alk_corr,sik_corr,aula_corr,aulb_corr,aulg_corr)*trel_norm + niscorpv23_prelv(thresh_offset,prel_hiindoff,sigma,alk_corr,sik_corr,aum_corr,aula_corr,aulb_corr,aulg_corr,prel_hicutoff)*prel_norm)*thresh(0.572,-0.110) + cor_norm*cor_so_corr*(niscorpv23_cor_so1v(thresh_offset,batch1_frac) + niscorpv23_cor_so2v(thresh_offset,1.0-batch1_frac)) + saa_norm*saa_so_corr*(niscorpv23_saa_so1v(thresh_offset,batch1_frac)+niscorpv23_saa_so2v(thresh_offset,1-batch1_frac))) : add 
+
+   set niscorpv23_mdefine 1
+}
+
+
+# -- SCORPEON source model nxb
+
+# Set response for source before running model command
+response 99:$nicer_bkgspect0 $nicer_diagrmf
+# response 99:$nicer_bkgspect0 $nicer_diagrmf
+arf      99:$nicer_bkgspect0 none
+
+if {[lsearch -exact $nicer_modnames "nxb"] >= 0} {
+    # Found model, skip anything for now
+} else {
+    # Not found, define it here
+    # Note that the /* means that we don't actually set the parameters yet
+    model  99:nxb niscorpv23_nxb + niscorpv23_noise
+    /*
+    # */
+}
+
+
+# Check which groups are attached to our model. Since we just defined
+# a model and a response for this source, it should be listed when
+# we run modgroups
+tclout modgroups nxb
+set nicer_spectpos [lsearch -exact $xspec_tclout "$nicer_bkgspect0"]
+if { $nicer_spectpos < 0} {
+  puts "ERROR: failed to establish nxb model for spectrum $nicer_bkgspect0"
+  return
+}
+
+# Number of groups in model
+set nicer_ngrp     [llength $xspec_tclout]
+tclout modpar nxb
+# Number of model parameters per group
+set nicer_modpar   [expr $xspec_tclout / $nicer_ngrp]
+# Parameter starting and stopping position which we will be setting
+set nicer_parstart [expr $nicer_modpar * $nicer_spectpos + 1]
+set nicer_parstop  [expr $nicer_parstart + 12 - 1]
+if { $nicer_modpar < 12 } {
+    puts "ERROR: parameter number mismatch for nxb model; you may have mix up SCORPEON versions"
+    return
+}
+
+newpar nxb:$nicer_parstart-$nicer_parstop
+0,-0.001,0,0,1,1
+0.940243899822235,-0.001,0,0,1,1
+48.8008117675781,-0.01,0,0,52,52
+6.7863564491272,0.001,5.76840298175812,5.76840298175812,7.80430991649628,7.80430991649628
+2.53638600471185,0.001,0,0,300,300
+0,0.001,0,0,5000,5000
+0,-0.001,0,0,1000,1000
+0,-0.001,0,0,100,100
+1,-0.001,0,0,2,2
+0.109050802886486,-0.001,0.08,0.08,0.25,0.25
+0.0269257482141256,-0.001,0.025,0.025,0.09,0.09
+237.105606079102,0.01,0,0,100000,100000
+/*
+# */
+# -- SCORPEON source model sky
+
+# Set response for source before running model command
+response 98:$nicer_bkgspect0 $nicer_srcrmf
+# response 98:$nicer_bkgspect0 $nicer_srcrmf
+arf      98:$nicer_bkgspect0 $nicer_skyarf
+
+if {[lsearch -exact $nicer_modnames "sky"] >= 0} {
+    # Found model, skip anything for now
+} else {
+    # Not found, define it here
+    # Note that the /* means that we don't actually set the parameters yet
+    model  98:sky niscorpv23_sky + niscorpv23_swcx
+    /*
+    # */
+}
+
+
+# Check which groups are attached to our model. Since we just defined
+# a model and a response for this source, it should be listed when
+# we run modgroups
+tclout modgroups sky
+set nicer_spectpos [lsearch -exact $xspec_tclout "$nicer_bkgspect0"]
+if { $nicer_spectpos < 0} {
+  puts "ERROR: failed to establish sky model for spectrum $nicer_bkgspect0"
+  return
+}
+
+# Number of groups in model
+set nicer_ngrp     [llength $xspec_tclout]
+tclout modpar sky
+# Number of model parameters per group
+set nicer_modpar   [expr $xspec_tclout / $nicer_ngrp]
+# Parameter starting and stopping position which we will be setting
+set nicer_parstart [expr $nicer_modpar * $nicer_spectpos + 1]
+set nicer_parstop  [expr $nicer_parstart + 15 - 1]
+if { $nicer_modpar < 15 } {
+    puts "ERROR: parameter number mismatch for sky model; you may have mix up SCORPEON versions"
+    return
+}
+
+newpar sky:$nicer_parstart-$nicer_parstop
+0.001,-0.001,0.001,0.001,100,100
+1.45,-0.01,-2,-2,10,10
+10.91,-0.01,7.637,7.637,16.365,16.365
+0.225,-0.01,0.1,0.1,0.3,0.3
+0.3,-0.001,0,0,100,100
+0.00683,0.001,0.0044395,0.0044395,0.0092205,0.0092205
+0.099,-0.001,0.003,0.003,0.12,0.12
+0.0037,0.001,0.00185,0.00185,0.00592,0.00592
+1,-0.01,0,0,2,2
+0,-0.05,0,0,10,10
+0,-0.01,0,0,100,100
+0,-0.01,0,0,100,100
+0,-0.01,0,0,100,100
+0,-0.01,0,0,100,100
+1,-0.01,0,0,2,2
+/*
+# */
+# Unset nicer_bkgspect so that the user is forced to run it every time
+unset nicer_datagrp
+unset nicer_modnames
+unset nicer_spectpos
+unset nicer_ngrp
+unset nicer_modpar
+unset nicer_parstart
+unset nicer_parstop
+unset nicer_bkgspect0
+# chatter $nicer_chatlevel
+# unset nicer_chatlevel
+
