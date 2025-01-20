@@ -11,11 +11,14 @@ TODO:
 [] For Xspec models, many lines are repeating/same. How to make it short? Class?
 BUGS:
 [] Ignoring bad channel only working in AllData
-[] Only spectrum plot data is able to save. The ratio plot data is not able to save
+[x] Only spectrum plot data is able to save. The ratio plot data is not able to save
+[] the xspec three models are running continuously. So, the spectrum is getting added to next session. How to exit xspec after doing on model.
 """
 
+import re
 import os
 import glob
+import yaml
 import numpy as np
 import argparse
 from xspec import *
@@ -223,6 +226,67 @@ def model_bknpowerlaw(pha, rmf, bkg, opath):
 		print(f"Error: An error in Xspec analysis: {e}")
 		return False
 
+def read_xspec_log(loglist):
+	"""
+	"""
+	model_data = {}
+	num_pattern = r"\b\d+\.\d+(?:[eE][+-]?\d{2})?\b"
+	for lfile in loglist:
+		with open(lfile, 'r') as file:
+			lcontent = file.read()
+
+		sections = re.split(r"={10,}", lcontent)
+		mcontent = sections[-1]
+
+		if "logpar" in mcontent:
+			lpm_lines = mcontent.strip().split('\n')
+			lpm_par1_line = [line for line in lpm_lines if "alpha" in line]
+			lpm_par1_vals = re.findall(num_pattern, lpm_par1_line[0])
+			lpm_par2_line = [line for line in lpm_lines if "beta" in line]
+			lpm_par2_vals = re.findall(num_pattern, lpm_par2_line[0])
+			lpm_par3_line = [line for line in lpm_lines if "pivotE" in line]
+			lpm_par3_vals = re.findall(num_pattern, lpm_par3_line[0])
+			lpm_par4_line = [line for line in lpm_lines if "norm" in line]
+			lpm_par4_vals = re.findall(num_pattern, lpm_par4_line[0])
+
+			model_data["logpar"] = {
+				"alpha": {"value": lpm_par1_vals[0], "error": lpm_par1_vals[1] if len(lpm_par1_vals) > 1 else None},
+				"beta": {"value": lpm_par2_vals[0], "error": lpm_par2_vals[1] if len(lpm_par2_vals) > 1 else None},
+				"pivotE": {"value": lpm_par3_vals[0], "error": lpm_par3_vals[1] if len(lpm_par3_vals) > 1 else None},
+				"norm": {"value": lpm_par4_vals[0], "error": lpm_par4_vals[1] if len(lpm_par4_vals) > 1 else None}}
+		elif "powerlaw" in mcontent:
+			pl_lines = mcontent.strip().split('\n')
+			pl_par1_line = [line for line in pl_lines if "PhoIndex" in line]
+			pl_par1_vals = re.findall(num_pattern, pl_par1_line[0])
+			pl_par2_line = [line for line in pl_lines if "norm" in line]
+			pl_par2_vals = re.findall(num_pattern, pl_par2_line[0])
+
+			model_data["powerlaw"] = {
+				"PhoIndex": {"value": pl_par1_vals[0], "error": pl_par1_vals[1] if len(pl_par1_vals) > 1 else None},
+				"norm": {"value": pl_par2_vals[0], "error": pl_par2_vals[1] if len(pl_par2_vals) > 1 else None}}
+		elif "bknpower" in mcontent:
+			bkn_lines = mcontent.strip().split('\n')
+			bkn_par1_line = [line for line in bkn_lines if "PhoIndx1" in line]
+			bkn_par1_vals = re.findall(num_pattern, bkn_par1_line[0])
+			bkn_par2_line = [line for line in bkn_lines if "BreakE" in line]
+			bkn_par2_vals = re.findall(num_pattern, bkn_par2_line[0])
+			bkn_par3_line = [line for line in bkn_lines if "PhoIndx2" in line]
+			bkn_par3_vals = re.findall(num_pattern, bkn_par3_line[0])
+			bkn_par4_line = [line for line in bkn_lines if "norm" in line]
+			bkn_par4_vals = re.findall(num_pattern, bkn_par4_line[0])
+
+			model_data["bknpower"] = {
+				"PhoIndx1": {"value": bkn_par1_vals[0], "error": bkn_par1_vals[1] if len(bkn_par1_vals) > 1 else None},
+				"BreakE": {"value": bkn_par2_vals[0], "error": bkn_par2_vals[1] if len(bkn_par2_vals) > 1 else None},
+				"PhoIndx2": {"value": bkn_par3_vals[0], "error": bkn_par3_vals[1] if len(bkn_par3_vals) > 1 else None},
+				"norm": {"value": bkn_par4_vals[0], "error": bkn_par4_vals[1] if len(bkn_par4_vals) > 1 else None}}		
+
+	# Save the data to a YAML file
+	with open("model_parameters.yaml", 'w') as file:
+		yaml.dump(model_data, file)
+
+
+	return
 
 if __name__ == "__main__":
 	# Getting path of the spectrum files as user input
@@ -231,8 +295,7 @@ if __name__ == "__main__":
 	args = parser.parse_args()
 	ip_path = args.ip_path
 
-	# out_path = ip_path
-	out_path = "/home/student/GitHome/nicer-xspec/outp"
+	out_path = ip_path
 
 	# Checking user input
 	try:
@@ -249,6 +312,7 @@ if __name__ == "__main__":
 
 	# Running Xspec analysis
 	for fpath in file_paths:
+		"""
 		try: 
 			src_file = check_file(fpath, "*src.pha")
 			rmf_file = check_file(fpath, "*.rmf")
@@ -263,4 +327,15 @@ if __name__ == "__main__":
 			print(f"model3: {model3}")
 		except (ValueError, FileNotFoundError) as e:
 			print(f"Error: {e}")
-			exit(1)
+			continue
+		"""
+		# Reading Xspec log files
+		try:
+			log_files = glob.glob(os.path.join(fpath, "*xspec.log"))
+			if len(log_files) == 3:
+				read_xspec_log(log_files)
+			else:
+				raise ValueError(f"Expected 3 Xspec log files in the directory '{fpath}', but found {len(log_files)}.")
+		except ValueError as e:
+			print(f"Error: {e}")
+			continue 
