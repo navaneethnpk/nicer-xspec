@@ -25,9 +25,9 @@ import re
 import os
 import glob
 import yaml
-import numpy as np
 import argparse
-from collections import OrderedDict
+import numpy as np
+import pandas as pd
 
 try:
 	from xspec import *
@@ -247,7 +247,7 @@ def get_mparameters(lines, pnames):
 		OrderedDict: Extracted parameter data with value and error.
 	"""
 	num_pattern = r"\b\d+\.\d+(?:[eE][+-]?\d{2})?\b"
-	para_data = OrderedDict()
+	para_data = {}
 
 	for param in pnames:
 		line = next((line for line in lines if param in line), None)
@@ -288,9 +288,9 @@ def read_xspec_log(loglist, opath):
 		loglist (list): List of paths to XSPEC log files.
 		opath (str): Path to save the output YAML file.
 	Returns:
-		None. Writes an ordered YAML file with extracted parameters.
+		Dict: model parameters and test statistics.
 	"""
-	model_data = OrderedDict()
+	model_data = {}
 	models = {
 		"logpar": ["alpha", "beta", "pivotE", "norm"],
 		"powerlaw": ["PhoIndex", "norm"],
@@ -309,10 +309,56 @@ def read_xspec_log(loglist, opath):
 				model_data[model] = {"parameters": get_mparameters(lines, param), "test_statistics": get_test_statistics(lines)}
 				break
 
-	with open(f"{opath}/model_params.yaml", 'w') as file:
-		yaml.dump(model_data, file, sort_keys=False, default_flow_style=False)
+	# with open(f"{opath}/model_pms.yaml", 'w') as file:
+	# 	yaml.dump(model_data, file, sort_keys=False, default_flow_style=False)
 
-	return
+	return model_data
+
+def extract_pm(data):
+	"""
+	Extracts model parameters from the given data and returns a DataFrame.
+	Args:
+		data (dict): The loaded YAML data containing model parameters.
+	Returns:
+		pd.DataFrame: A DataFrame
+	"""
+	pm_data = []
+	for mname, minfo in data.items():
+		for param, values in minfo["parameters"].items():
+			pm_data.append([mname, param, values["value"], values["error"]])
+	pmdf = pd.DataFrame(pm_data, columns=["Model", "Parameter", "Value", "Error"])
+
+	return pmdf
+
+def extract_ts(data):
+	"""
+	Extracts test statistics from the data and returns a DataFrame.
+	"""
+	ts_data = []
+	for mname, minfo in data.items():
+		chi_val = float(minfo["test_statistics"]["Chi-Squared"])
+		dof_val = float(minfo["test_statistics"]["DOF"])
+		rcs_val = round(chi_val / dof_val, 4)
+		ts_data.append([mname, chi_val, dof_val, rcs_val])
+	tsdf = pd.DataFrame(ts_data, columns=["Model", "Chi2", "DOF", "RedChi2"])
+
+	return tsdf
+
+def process_df(df, morder):
+	"""
+	Processes and sorts a DataFrame by the model order.
+	Args:
+		df (pd.DataFrame): The DataFrame to be processed.
+		morder (list): The desired order of the models.
+	Returns:
+		pd.DataFrame: The sorted DataFrame.
+	"""
+	df["Model"] = pd.Categorical(df["Model"], categories=morder, ordered=True)
+	df = df.sort_values("Model")
+	df = df.reset_index(drop=True)
+
+	return df
+
 
 if __name__ == "__main__":
 	# Getting path of the spectrum files as user input
@@ -337,7 +383,7 @@ if __name__ == "__main__":
 	# Running Xspec analysis
 	for fpath in file_paths:
 		print(f"\n>>> Running Xspec analysis for Obs: {fpath}")
-		
+
 		try: 
 			src_file = check_file(fpath, "*src.pha")
 			rmf_file = check_file(fpath, "*.rmf")
@@ -352,18 +398,41 @@ if __name__ == "__main__":
 			continue
 
 		if model1 and model2 and model3:
-			print("> Xspec analysis are successful.")
+			print("> Xspec analysis are successful. Output files from Xspec are created")
 		else:
 			print("> Error: XSPEC analysis failed. Check!")
-		
+
 		# Reading Xspec log files
 		try:
 			log_files = glob.glob(os.path.join(fpath, "*xspec.log"))
 			if len(log_files) == 3:
-				read_xspec_log(log_files, fpath)
-				print("> The output files are created.")
+				mdata = read_xspec_log(log_files, fpath)
+				print("> The Xspec log files checked for model parameters.")
 			else:
 				raise ValueError(f"Expected 3 Xspec log files in the directory '{fpath}', but found {len(log_files)}.")
 		except ValueError as e:
 			print(f"> Error: {e}")
 			continue 
+		
+		# Printing and saving model parameters
+		if mdata:
+			# Get model parameter and test statistics as tables
+			mdf = extract_pm(mdata)
+			tdf = extract_ts(mdata)
+
+			# Define model order and process DataFrames (Not really needed)
+			morder = ["logpar", "powerlaw", "bknpower"]
+			mdf = process_df(mdf, morder)
+			tdf = process_df(tdf, morder)
+
+			# Print the tables
+			print(f"\nThe model parameter table:\n{mdf}\n")
+			print(f"The model test statistics table:\n{tdf}\n")
+
+			# Saving the tables
+			pname, tname = "model_pm.csv", "model_ts.csv"
+			mdf.to_csv(os.path.join(fpath, pname), index=False)
+			tdf.to_csv(os.path.join(fpath, tname), index=False)
+			print(f"The tables are saved: {pname}, {tname}")
+		else:
+			print(f"> Error: Model parameters were not collected successfully. Failed to make DataFrames.")
