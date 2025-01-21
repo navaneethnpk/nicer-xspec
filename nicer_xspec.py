@@ -9,6 +9,7 @@ import yaml
 import argparse
 import numpy as np
 import pandas as pd
+from datetime import datetime
 
 try:
 	from xspec import *
@@ -18,20 +19,18 @@ except ModuleNotFoundError:
 
 def check_file(filepath, pattern):
 	"""
-	Checks if exactly one file matching the given pattern exists in the specified directory.
-	Args:
-		filepath (str): Directory path to search.
-		pattern (str): File pattern (e.g., '*.rmf').
-	Returns:
-		str: Path to the matching file if exactly one is found.
+	Checks if there is file matching the given pattern in the specified directory.
 	"""
 	file_match = glob.glob(os.path.join(filepath, pattern))
-	if len(file_match) == 1:
-		return file_match[0]
-	elif len(file_match) > 1:
-		raise ValueError(f"More than one '{pattern}' file found. Please make sure that only one exists in the given path.")
-	else:
-		raise FileNotFoundError(f"The file matching '{pattern}' is not present in the given path.")
+	return file_match
+
+def log_error(errmsg):
+	"""
+	Helper function for logging errors
+	"""
+	with open('failed_obs.txt', 'a') as file:
+		file.write(errmsg)
+	return
 
 def model_logpar(pha, rmf, bkg, opath):
 	"""
@@ -361,55 +360,57 @@ if __name__ == "__main__":
 		print(f"> Error: {e}")
 		exit(1)
 
+	log_error(f"\n{datetime.now().strftime("%Y-%m-%dT%H:%M:%S")}\n")
+
 	# Running Xspec analysis
 	for fpath in file_paths:
 		print(f"\n>>> Running Xspec analysis for Obs: {fpath}")
 
 		try:
+			# Check if path exists
+			if not os.path.exists(fpath):
+				raise FileNotFoundError(f"Path does not exist: {fpath}")
+			
 			# Checking required files 
-			src_file = check_file(fpath, "*src.pha")
+			src_file = check_file(fpath, "*sr.pha")
 			rmf_file = check_file(fpath, "*.rmf")
-			bkg_file = check_file(fpath, "*bkg.xcm")
-
+			bkg_file = check_file(fpath, "*bg.xcm")
+			if src_file and rmf_file and bkg_file:
+				src_file, rmf_file, bkg_file = src_file[0], rmf_file[0], bkg_file[0]
+			else:
+				raise FileNotFoundError(f"The files (PHA, RMF, BKG) are not present in the given path.")
+			
 			# Xspec analysis
 			model1 = model_logpar(src_file, rmf_file, bkg_file, fpath)
 			model2 = model_powerlaw(src_file, rmf_file, bkg_file, fpath)
 			model3 = model_bknpowerlaw(src_file, rmf_file, bkg_file, fpath)
-			if model1 and model2 and model3:
-				print("> Xspec analysis are successful. Output files from Xspec are created")
-			else:
-				print("> Error: XSPEC analysis failed.")
+			if not (model1 and model2 and model3):
+				raise ValueError("XSPEC analysis failed.")
 
 			# Reading Xspec log files
 			log_files = glob.glob(os.path.join(fpath, "*xspec.log"))
-			if len(log_files) == 3:
-				mdata = read_xspec_log(log_files, fpath)
-				print("> The Xspec log files checked for model parameters.")
-			else:
-				raise ValueError(f"Expected 3 Xspec log files in the directory '{fpath}', but found {len(log_files)}.")
-		
-			# Printing and saving model parameters
-			if mdata:
-				# Get model parameter and test statistics as tables
-				mdf = extract_pm(mdata)
-				tdf = extract_ts(mdata)
-				# Define model order and process DataFrames (Not really needed)
-				morder = ["logpar", "powerlaw", "bknpower"]
-				mdf = process_df(mdf, morder)
-				tdf = process_df(tdf, morder)
-				# Print and save the tables
-				print(f"\nThe model parameter table:\n{mdf}\n")
-				print(f"The model test statistics table:\n{tdf}\n")
-				pname, tname = "model_pm.csv", "model_ts.csv"
-				mdf.to_csv(os.path.join(fpath, pname), index=False)
-				tdf.to_csv(os.path.join(fpath, tname), index=False)
-				print(f"The tables are saved: {pname}, {tname}")
-			else:
-				print(f"> Error: Model parameters were not collected successfully. Failed to make DataFrames.")
+			if len(log_files) != 3:
+				raise ValueError(f"Expected 3 Xspec log files, but found {len(log_files)}.")
+			mdata = read_xspec_log(log_files, fpath)
+			if not mdata:
+				raise ValueError("Model parameters were not collected successfully.")
+
+			# Get model parameter and test statistics as tables
+			mdf = extract_pm(mdata)
+			tdf = extract_ts(mdata)
+			# Define model order and process DataFrames (Not really needed)
+			morder = ["logpar", "powerlaw", "bknpower"]
+			mdf = process_df(mdf, morder)
+			tdf = process_df(tdf, morder)
+			# Print and save the tables
+			print(f"\nThe model parameter table:\n{mdf}\n")
+			print(f"The model test statistics table:\n{tdf}\n")
+			mdf.to_csv(os.path.join(fpath, "model_pm.csv"), index=False)
+			tdf.to_csv(os.path.join(fpath, "model_ts.csv"), index=False)
+
 		except Exception as e:
+			error_msg = f"- {fpath}:: {str(e)}\n"
+			log_error(error_msg)
 			print(f"> Error: {e}")
-			# Log the path of failed analysis
-			with open('failed_obs.txt', 'a') as file:
-				file.write(f"- {fpath}: {str(e)}\n")
 			print(f"> Error logged for {fpath}. Moving to next path.")
 			continue
