@@ -1,11 +1,3 @@
-"""
-ABOUT:
-
-TODO:
-[] Make function to read the yaml file
-
-BUG:
-"""
 
 import os
 import glob
