@@ -1,0 +1,6 @@
+- /home/student/Testarea/nicer-test2/one: The file matching '*src.pha' is not present in the given path.
+- /home/student/Testarea/nicer-test2/tree: The file matching '*.rmf' is not present in the given path.
+- /home/student/Testarea/nicer-test2/four: The file matching '*src.pha' is not present in the given path.
+- /home/student/Testarea/nicer-test2/one: The file matching '*src.pha' is not present in the given path.
+- /home/student/Testarea/nicer-test2/tree: The file matching '*src.pha' is not present in the given path.
+- /home/student/Testarea/nicer-test2/four: The file matching '*src.pha' is not present in the given path.
