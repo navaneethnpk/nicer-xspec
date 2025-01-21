@@ -10,7 +10,7 @@ TODO:
 [x] Xspec function for model-3 (broken powerlaw)
 [x] Read the log file and make a json/yaml file for fit statistics
 [x] make the code for both single obs analysis and a list of obs
-[] Run it on and kopernik and debug it.
+[x] Run it on and kopernik and debug it.
 [] Make plot from the spectrum and ratio data - seperate code
 [] Code to read the YAML file - seperate code
 [] generalise the code such that you can use it on any source. (make nH, z etc user inputs - no source specific data hardcoded)
@@ -384,7 +384,8 @@ if __name__ == "__main__":
 	for fpath in file_paths:
 		print(f"\n>>> Running Xspec analysis for Obs: {fpath}")
 
-		try: 
+		try:
+			# Checking required files 
 			src_file = check_file(fpath, "*src.pha")
 			rmf_file = check_file(fpath, "*.rmf")
 			bkg_file = check_file(fpath, "*bkg.xcm")
@@ -393,46 +394,41 @@ if __name__ == "__main__":
 			model1 = model_logpar(src_file, rmf_file, bkg_file, fpath)
 			model2 = model_powerlaw(src_file, rmf_file, bkg_file, fpath)
 			model3 = model_bknpowerlaw(src_file, rmf_file, bkg_file, fpath)
-		except (ValueError, FileNotFoundError) as e:
-			print(f"> Error: {e}")
-			continue
+			if model1 and model2 and model3:
+				print("> Xspec analysis are successful. Output files from Xspec are created")
+			else:
+				print("> Error: XSPEC analysis failed.")
 
-		if model1 and model2 and model3:
-			print("> Xspec analysis are successful. Output files from Xspec are created")
-		else:
-			print("> Error: XSPEC analysis failed. Check!")
-
-		# Reading Xspec log files
-		try:
+			# Reading Xspec log files
 			log_files = glob.glob(os.path.join(fpath, "*xspec.log"))
 			if len(log_files) == 3:
 				mdata = read_xspec_log(log_files, fpath)
 				print("> The Xspec log files checked for model parameters.")
 			else:
 				raise ValueError(f"Expected 3 Xspec log files in the directory '{fpath}', but found {len(log_files)}.")
-		except ValueError as e:
-			print(f"> Error: {e}")
-			continue 
 		
-		# Printing and saving model parameters
-		if mdata:
-			# Get model parameter and test statistics as tables
-			mdf = extract_pm(mdata)
-			tdf = extract_ts(mdata)
-
-			# Define model order and process DataFrames (Not really needed)
-			morder = ["logpar", "powerlaw", "bknpower"]
-			mdf = process_df(mdf, morder)
-			tdf = process_df(tdf, morder)
-
-			# Print the tables
-			print(f"\nThe model parameter table:\n{mdf}\n")
-			print(f"The model test statistics table:\n{tdf}\n")
-
-			# Saving the tables
-			pname, tname = "model_pm.csv", "model_ts.csv"
-			mdf.to_csv(os.path.join(fpath, pname), index=False)
-			tdf.to_csv(os.path.join(fpath, tname), index=False)
-			print(f"The tables are saved: {pname}, {tname}")
-		else:
-			print(f"> Error: Model parameters were not collected successfully. Failed to make DataFrames.")
+			# Printing and saving model parameters
+			if mdata:
+				# Get model parameter and test statistics as tables
+				mdf = extract_pm(mdata)
+				tdf = extract_ts(mdata)
+				# Define model order and process DataFrames (Not really needed)
+				morder = ["logpar", "powerlaw", "bknpower"]
+				mdf = process_df(mdf, morder)
+				tdf = process_df(tdf, morder)
+				# Print and save the tables
+				print(f"\nThe model parameter table:\n{mdf}\n")
+				print(f"The model test statistics table:\n{tdf}\n")
+				pname, tname = "model_pm.csv", "model_ts.csv"
+				mdf.to_csv(os.path.join(fpath, pname), index=False)
+				tdf.to_csv(os.path.join(fpath, tname), index=False)
+				print(f"The tables are saved: {pname}, {tname}")
+			else:
+				print(f"> Error: Model parameters were not collected successfully. Failed to make DataFrames.")
+		except Exception as e:
+			print(f"> Error: {e}")
+			# Log the path of failed analysis
+			with open('failed_obs.txt', 'a') as file:
+				file.write(f"{fpath}: {str(e)}\n")
+			print(f"> Error logged for {fpath}. Moving to next path.")
+			continue
