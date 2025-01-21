@@ -1,4 +1,8 @@
 """
+ABOUT:
+- 
+
+
 TODO:
 [x] Function to check files are there or not
 [x] Xspec function for model-1 (log parabola)
@@ -23,7 +27,6 @@ import yaml
 import numpy as np
 import argparse
 from xspec import *
-import matplotlib.pyplot as plt
 from collections import OrderedDict
 
 def check_file(filepath, pattern):
@@ -250,6 +253,28 @@ def get_mparameters(lines, pnames):
 
 	return para_data
 
+def get_test_statistics(lines):
+	"""
+	Extracts test statistics (Chi-Squared and DOF) from the lines.
+	Args:
+		lines (list): Lines of text to search for parameters.
+	Returns:
+		Dict: Extracted parameter data with value and error.
+	"""
+	ts_data = {}
+	num_pattern = r"\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b"
+
+	chi_val = re.findall(num_pattern, lines[-2])
+	dof_val = re.findall(num_pattern, lines[-1])
+
+	if chi_val and dof_val:
+		ts_data["Chi-Squared"] = chi_val[0]
+		ts_data["DOF"] = dof_val[1]
+	else:
+		print(f"> Warning: test statistics values not found in the lines.")
+
+	return ts_data
+
 def read_xspec_log(loglist, opath):
 	"""
 	Reads XSPEC log files, extracts model parameters, and writes them to a YAML file.
@@ -275,7 +300,7 @@ def read_xspec_log(loglist, opath):
 		for model, param in models.items():
 			if model in mcontent:
 				lines = mcontent.strip().split('\n')
-				model_data[model] = get_mparameters(lines, param)
+				model_data[model] = {"parameters": get_mparameters(lines, param), "test_statistics": get_test_statistics(lines)}
 				break
 
 	with open(f"{opath}/model_params.yaml", 'w') as file:
@@ -306,7 +331,7 @@ if __name__ == "__main__":
 	# Running Xspec analysis
 	for fpath in file_paths:
 		print(f"\n>>> Running Xspec analysis for Obs: {fpath}")
-
+		
 		try: 
 			src_file = check_file(fpath, "*src.pha")
 			rmf_file = check_file(fpath, "*.rmf")
@@ -324,7 +349,7 @@ if __name__ == "__main__":
 			print("> Xspec analysis are successful.")
 		else:
 			print("> Error: XSPEC analysis failed. Check!")
-
+		
 		# Reading Xspec log files
 		try:
 			log_files = glob.glob(os.path.join(fpath, "*xspec.log"))

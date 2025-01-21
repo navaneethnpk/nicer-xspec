@@ -1,6 +1,6 @@
 !!python/object/apply:collections.OrderedDict
 - - - bknpower
-    - !!python/object/apply:collections.OrderedDict
+    - parameters: !!python/object/apply:collections.OrderedDict
       - - - PhoIndx1
           - value: '1.41799'
             error: '7.61943E-03'
@@ -13,8 +13,11 @@
         - - norm
           - value: '589.475'
             error: '2.31016'
+      test_statistics:
+        Chi-Squared: '2279.70'
+        DOF: '127'
   - - logpar
-    - !!python/object/apply:collections.OrderedDict
+    - parameters: !!python/object/apply:collections.OrderedDict
       - - - alpha
           - value: '1.99975'
             error: '4.53951E-03'
@@ -27,11 +30,17 @@
         - - norm
           - value: '618.706'
             error: '2.08854'
+      test_statistics:
+        Chi-Squared: '1656.92'
+        DOF: '128'
   - - powerlaw
-    - !!python/object/apply:collections.OrderedDict
+    - parameters: !!python/object/apply:collections.OrderedDict
       - - - PhoIndex
           - value: '2.56115'
             error: '2.75637E-03'
         - - norm
           - value: '293.342'
             error: '0.910120'
+      test_statistics:
+        Chi-Squared: '44638.19'
+        DOF: '129'
