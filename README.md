@@ -6,11 +6,11 @@ This repository contains Python scripts for analyzing NICER spectral data using 
 
 ### Prerequisites
 
-#### Software
+**Software**
 - HEASoft
 
-#### Python Dependencies
-- NumPy, Pandas, PyXspec
+**Python Dependencies**
+- NumPy, Pandas, PyXspec, Matplotlib
 
 ---
 
@@ -24,26 +24,23 @@ This repository contains Python scripts for analyzing NICER spectral data using 
    ```bash
    python nicer_xspec.py observation_path
    ```
-   - `observation_path`:  
-     Can be either:
-     - A directory containing the required files (`PHA`, `RMF`, and `BKG`) with appropriate naming.  
-     - A text file listing multiple observation paths (one per line).
+   - `observation_path`: Can be either a directory containing the required files (`PHA`, `RMF`, and `BKG`) with the correct naming convention, or a text file with multiple observation paths listed one per line.
 
 ---
 
-## Outputs
+### Outputs
 
 For each XSPEC model, the following files will be generated:
-
 - Logs: `model_xspec.log` (e.g., `logpar_xspec.log`) – logs of the analysis.
 - Plots: `model_plot.ps` – spectral and ratio plots.
 - Model Files: `model.xcm` – XSPEC model files.
 - Data:
 	- `model_spec.csv` – spectrum plot data.
 	- `model_ratio.csv` – ratio plot data.
- 
-- `model_pm.csv`: Extracted model parameters.
-- `model_ts.csv`: Test statistics of the models.
+
+For each Observation, the following files will be generated:
+   - `model_pm.csv`: Extracted model parameters.
+   - `model_ts.csv`: Test statistics of the models.
 
 ---
 
@@ -52,9 +49,9 @@ For each XSPEC model, the following files will be generated:
 Ensure the following files exist in the directory for a single observation:
 ```
 observation_path/
-├── *src.pha   # Source spectrum file
+├── *sr.pha   # Source spectrum file
 ├── *.rmf     # Response matrix file
-├── *bkg.xcm  # Background model file
+├── *bg.xcm  # Background model file
 ```
 
 --- 

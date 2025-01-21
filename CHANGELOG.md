@@ -12,11 +12,11 @@ TODO:
 [x] check_file:only check file and return bool. then in the __main__ print which one/ones is not there.
 [x] also check fpath is there or not. now even path is not there.it will show file is not present.
 [x] error-log is appending - account for that.
-[] Make plot from the spectrum and ratio data - seperate code
+[x] Make plot from the spectrum and ratio data - seperate code
 [x] Code to read the YAML file - seperate code
 [x] Print and save parameters as table.
+[x] README
 [] generalise the code such that you can use it on any source. 
-[] README
 BUGS:
 [x] Ignoring bad channel only working in AllData
 [x] Only spectrum plot data is able to save. The ratio plot data is not able to save
