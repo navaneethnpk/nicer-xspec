@@ -10,6 +10,7 @@ TODO:
 [x] Xspec function for model-3 (broken powerlaw)
 [x] Read the log file and make a json/yaml file for fit statistics
 [x] make the code for both single obs analysis and a list of obs
+[] Run it on and kopernik and debug it.
 [] Make plot from the spectrum and ratio data - seperate code
 [] Code to read the YAML file - seperate code
 [] generalise the code such that you can use it on any source. (make nH, z etc user inputs - no source specific data hardcoded)
@@ -26,8 +27,13 @@ import glob
 import yaml
 import numpy as np
 import argparse
-from xspec import *
 from collections import OrderedDict
+
+try:
+	from xspec import *
+except ModuleNotFoundError:
+	print("\n!!! Xspec is not initiated. Run the Python code after initializing HEASoft and CALDB. !!!\n")
+	exit(1)	
 
 def check_file(filepath, pattern):
 	"""
