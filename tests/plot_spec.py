@@ -1,6 +1,8 @@
 """
 Plot spectrum data and optional ratio data with single or dual plot layouts.
 """
+import os
+import argparse
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.ticker import ScalarFormatter, LogLocator
@@ -24,10 +26,14 @@ def plot_axsetup(ax, xlabel=None, ylabel=None):
 		ax.set_ylabel(ylabel, fontsize=10)
 	return
 
-def plot_spectrum(df_spect, df_ratio=None, single_plot=False):
+def plot_spectrum(df_spect, fpath, df_ratio=None, single_plot=False):
 	"""
 	Plot a spectrum with optional ratio data in either a single or dual plot layout.
 	"""
+	dirpath = os.path.dirname(fpath)
+	mname = os.path.basename(fpath).split("_")[0]
+	iname = os.path.join(dirpath, f"{mname}.png")
+
 	x1, y1, y1e, mdl = df_spect["xVals"], df_spect["yVals"], df_spect["yErrs"], df_spect["modVals"]
 
 	if single_plot:
@@ -39,7 +45,6 @@ def plot_spectrum(df_spect, df_ratio=None, single_plot=False):
 	else:
 		x2, y2, y2e = df_ratio["xVals"], df_ratio["yVals"], df_ratio["yErrs"]
 		fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 8), gridspec_kw={'height_ratios': [7, 3]}, sharex=True)
-		fig.suptitle("Spectrum: __ Model", fontsize=12)
 		
 		ax1.errorbar(x1, y1, yerr=y1e, fmt="o", markersize=2, label="Data", color="royalblue", ecolor="lightblue", capsize=1)
 		ax1.plot(x1, mdl, label="Model", color="crimson", linestyle="-", linewidth=1)
@@ -51,7 +56,10 @@ def plot_spectrum(df_spect, df_ratio=None, single_plot=False):
 		plot_axsetup(ax2, xlabel="Energy (keV)", ylabel="Ratio")
 
 		plt.subplots_adjust(hspace=0.1)
+
+	fig.suptitle(f"Spectrum: {mname} Model", fontsize=12)
 	plt.tight_layout()
+	plt.savefig(iname, dpi=300, bbox_inches="tight")
 	plt.show()
 
 
@@ -67,6 +75,4 @@ if __name__ == "__main__":
 	df_spect = pd.read_csv(ip_path1)
 	df_ratio = pd.read_csv(args.ip_path2) if args.ip_path2 else None
 
-	plot_spectrum(df_spect, df_ratio, single_plot=args.single)
-
-
+	plot_spectrum(df_spect, ip_path1, df_ratio,single_plot=args.single)

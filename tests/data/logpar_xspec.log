@@ -1,0 +1,155 @@
+
+1 spectrum  in use
+ 
+Spectral Data File: tests/data/ni6100110132mpu7_sr.pha  Spectrum 1
+Net count rate (cts/s) for Spectrum:1  1.236e+03 +/- 8.268e+00
+ Assigned to Data Group 1 and Plot Group 1
+  Noticed Channels:  1-162
+  Telescope: NICER Instrument: XTI  Channel Type: PI
+  Exposure Time: 492 sec
+ Using fit statistic: chi
+ No response loaded.
+ Grouping data :
+   1501 channels grouped to 162
+        1                       +--+--+--+---+---+---+---+--
+       51 -+---+---+---+---+---+---+---+---+---+---+---+---+
+      101 ---+---+---+---+---+---+---+---+---+---+---+---+--
+      151 -+---+----+----+----+----+----+----+----+----+----
+      201 +----+----+----+----+----+----+----+----+----+----
+      251 +-----+-----+-----+-----+-----+-----+-----+-----+-
+      301 ----+-----+-----+-----+-----+-----+-----+------+--
+      351 ----+------+------+------+------+------+------+---
+      401 ---+------+------+------+------+------+-------+---
+      451 ----+-------+-------+-------+-------+-------+-----
+      501 --+-------+-------+-------+-------+-------+-------
+      551 -+--------+--------+--------+--------+--------+---
+      601 -----+---------+---------+---------+---------+----
+      651 -----+---------+---------+----------+----------+--
+      701 --------+----------+----------+----------+--------
+      751 --+----------+----------+----------+----------+---
+      801 --------+------------+------------+------------+--
+      851 ----------+-------------+------------+------------
+      901 -+-------------+-------------+-------------+------
+      951 ---------+--------------+--------------+----------
+     1001 -----+-----------------+----------------+---------
+     1051 -------+-----------------+------------------+-----
+     1101 ------------+-----------------+----------------+--
+     1151 --------------+------------------+----------------
+     1201 --+----------------+------------------+-----------
+     1251 -------+-----------------+-----------------+------
+     1301 ------------+--------------------+----------------
+     1351 ---+------------------+--------------------+------
+     1401 --------------+-------------------+---------------
+     1451 -----+--------------------+------------------+----
+     1501 -
+
+***Warning!  One or more spectra are missing responses,
+               and are not suitable for fit.
+Warning: RMF DETNAM keyword (99) is not consistent with that in spectrum (NONE)
+Response successfully loaded.
+*** Check for missing or improperly set HDUCLASS keywords in HDU of spectrum file
+    (or PHAVERSN keyword for old-style files).
+
+*** Background file has inconsistent format with data:  background file tests/data/ni6100110132mpu7_bg.xcm read skipped
+
+ignore:     0 channels ignored from  source number 1
+     3 channels (1-3) ignored in spectrum #     1
+    28 channels (135-162) ignored in spectrum #     1
+
+
+========================================================================
+Model TBabs<1>*logpar<2> Source No.: 1   Active/On
+Model Model Component  Parameter  Unit     Value
+ par  comp
+   1    1   TBabs      nH         10^22    1.00000      +/-  0.0          
+   2    2   logpar     alpha               1.50000      +/-  0.0          
+   3    2   logpar     beta                0.200000     +/-  0.0          
+   4    2   logpar     pivotE     (scale)  1.00000      
+   5    2   logpar     norm                1.00000      +/-  0.0          
+________________________________________________________________________
+
+
+Fit statistic  : Chi-Squared                147979.8     using 131 bins.
+
+Test statistic : Chi-Squared                147979.8     using 131 bins.
+ Null hypothesis probability of 0.0e+00 with 127 degrees of freedom
+ Current data and model not fit yet.
+
+Fit statistic  : Chi-Squared                147576.1     using 131 bins.
+
+Test statistic : Chi-Squared                147576.1     using 131 bins.
+ Null hypothesis probability of 0.0e+00 with 127 degrees of freedom
+ Current data and model not fit yet.
+
+Fit statistic  : Chi-Squared                147576.1     using 131 bins.
+
+Test statistic : Chi-Squared                147576.1     using 131 bins.
+ Null hypothesis probability of 0.0e+00 with 128 degrees of freedom
+ Current data and model not fit yet.
+
+Fit statistic  : Chi-Squared                147034.1     using 131 bins.
+
+Test statistic : Chi-Squared                147034.1     using 131 bins.
+ Null hypothesis probability of 0.0e+00 with 128 degrees of freedom
+ Current data and model not fit yet.
+
+Fit statistic  : Chi-Squared                147609.1     using 131 bins.
+
+Test statistic : Chi-Squared                147609.1     using 131 bins.
+ Null hypothesis probability of 0.0e+00 with 128 degrees of freedom
+ Current data and model not fit yet.
+Default fit statistic is set to: Chi-Squared
+   This will apply to all current and newly loaded spectra.
+
+Fit statistic  : Chi-Squared                147609.1     using 131 bins.
+
+Test statistic : Chi-Squared                147609.1     using 131 bins.
+ Null hypothesis probability of 0.0e+00 with 128 degrees of freedom
+ Current data and model not fit yet.
+Number of trials and critical delta: 100  0.01
+                                   Parameters
+Chi-Squared  |beta|/N    Lvl       2:alpha        3:beta        5:norm
+52110.2      16226.4      -1       1.59553       1.48815       225.988
+26266.5      1748.8       -2       2.61539       1.46172       591.629
+3926.8       15057.9      -3       2.03756       1.45579       616.971
+1716.69      3085.17      -4       2.00571       1.76020       611.558
+1657.41      366.858      -5       2.00043       1.84030       617.821
+1656.92      26.6468      -6       1.99981       1.84826       618.642
+1656.92      1.68412      -7       1.99975       1.84885       618.706
+========================================
+ Variances and Principal Axes
+                 2        3        5  
+ 1.4690E-05|  0.9669   0.2553  -0.0006  
+ 1.0006E-04|  0.2553  -0.9668   0.0036  
+ 4.3620E+00| -0.0003   0.0036   1.0000  
+----------------------------------------
+
+====================================
+  Covariance Matrix
+        1           2           3   
+   2.061e-05  -2.553e-05  -1.238e-03
+  -2.553e-05   1.511e-04   1.571e-02
+  -1.238e-03   1.571e-02   4.362e+00
+------------------------------------
+
+========================================================================
+Model TBabs<1>*logpar<2> Source No.: 1   Active/On
+Model Model Component  Parameter  Unit     Value
+ par  comp
+   1    1   TBabs      nH         10^22    1.31000E-02  frozen
+   2    2   logpar     alpha               1.99975      +/-  4.53951E-03  
+   3    2   logpar     beta                1.84885      +/-  1.22910E-02  
+   4    2   logpar     pivotE     (scale)  1.00000      
+   5    2   logpar     norm                618.706      +/-  2.08854      
+________________________________________________________________________
+
+
+Fit statistic  : Chi-Squared                 1656.92     using 131 bins.
+
+Test statistic : Chi-Squared                 1656.92     using 131 bins.
+ Null hypothesis probability of 6.20e-264 with 128 degrees of freedom
+
+Fit statistic  : Chi-Squared                 1656.92     using 131 bins.
+
+Test statistic : Chi-Squared                 1656.92     using 131 bins.
+ Null hypothesis probability of 6.20e-264 with 128 degrees of freedom
