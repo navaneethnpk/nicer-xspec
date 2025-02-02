@@ -26,19 +26,17 @@ def plot_axsetup(ax, xlabel=None, ylabel=None):
 		ax.set_ylabel(ylabel, fontsize=10)
 	return
 
-def plot_spectrum(df_spect, fpath, df_ratio=None, single_plot=False):
+def plot_spectrum(df_spect, fpath, mname, df_ratio=None, single_plot=False):
 	"""
 	Plot a spectrum with optional ratio data in either a single or dual plot layout.
 	"""
-	dirpath = os.path.dirname(fpath)
-	mname = os.path.basename(fpath).split("_")[0]
-	iname = os.path.join(dirpath, f"{mname}.png")
+	iname = os.path.join(fpath, f"{mname}_plot.png")
 
 	x1, y1, y1e, mdl = df_spect["xVals"], df_spect["yVals"], df_spect["yErrs"], df_spect["modVals"]
 
 	if single_plot:
 		fig, ax = plt.subplots(figsize=(8, 6))
-		ax.errorbar(x1, y1, yerr=y1e, fmt="o", markersize=4, label="Data", color="royalblue", ecolor="lightblue", capsize=2)
+		ax.errorbar(x1, y1, yerr=y1e, fmt="o", markersize=4, label="Data", color="royalblue", ecolor="lightblue", elinewidth=1, capsize=1)
 		ax.plot(x1, mdl, label="Model", color="crimson", linestyle="-", linewidth=1)
 		plot_axsetup(ax, xlabel="Energy (keV)", ylabel=r"keV$^2$ (Photons cm$^{-2}$ s$^{-1}$ keV$^{-1}$)")
 		ax.legend()
@@ -46,12 +44,12 @@ def plot_spectrum(df_spect, fpath, df_ratio=None, single_plot=False):
 		x2, y2, y2e = df_ratio["xVals"], df_ratio["yVals"], df_ratio["yErrs"]
 		fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 8), gridspec_kw={'height_ratios': [7, 3]}, sharex=True)
 		
-		ax1.errorbar(x1, y1, yerr=y1e, fmt="o", markersize=2, label="Data", color="royalblue", ecolor="lightblue", capsize=1)
+		ax1.errorbar(x1, y1, yerr=y1e, fmt="o", markersize=2, label="Data", color="royalblue", ecolor="lightblue", elinewidth=1, capsize=1)
 		ax1.plot(x1, mdl, label="Model", color="crimson", linestyle="-", linewidth=1)
 		plot_axsetup(ax1, ylabel=r"keV$^2$ (Photons cm$^{-2}$ s$^{-1}$ keV$^{-1}$)")
 		ax1.legend()
 
-		ax2.errorbar(x2, y2, yerr=y2e, fmt="o", markersize=2, color="seagreen", ecolor="lightgreen", capsize=1)
+		ax2.errorbar(x2, y2, yerr=y2e, fmt="o", markersize=2, color="seagreen", ecolor="lightgreen", elinewidth=1, capsize=1)
 		ax2.axhline(1.0, color="crimson", linestyle="-", linewidth=1)
 		plot_axsetup(ax2, xlabel="Energy (keV)", ylabel="Ratio")
 
@@ -60,19 +58,54 @@ def plot_spectrum(df_spect, fpath, df_ratio=None, single_plot=False):
 	fig.suptitle(f"Spectrum: {mname} Model", fontsize=12)
 	plt.tight_layout()
 	plt.savefig(iname, dpi=300, bbox_inches="tight")
-	plt.show()
+	# plt.show()
 
+def log_error(errmsg):
+	"""
+	Helper function for logging errors
+	"""
+	with open('failed_plots.txt', 'a') as file:
+		file.write(errmsg)
+	return
 
 if __name__ == "__main__":
-	parser = argparse.ArgumentParser(description="Provide the CSV files path")
-	parser.add_argument("ip_path1", type=str, help="CSV file - Spectrum")
-	parser.add_argument("ip_path2", type=str, nargs="?", help="CSV file - Ratio (optional)", default=None)
-	parser.add_argument("--single", action="store_true", help="Plot only the single main plot")
+	# Getting path of the spectrum files as user input
+	parser = argparse.ArgumentParser(description="Provide the file path or a text file containing paths for the spectrum data.")
+	parser.add_argument('ip_path', type=str, help='Path to the spectrum data directory or a text file with paths')
 	args = parser.parse_args()
-	ip_path1 = args.ip_path1
-	ip_path2 = args.ip_path2
+	ip_path = args.ip_path
 
-	df_spect = pd.read_csv(ip_path1)
-	df_ratio = pd.read_csv(args.ip_path2) if args.ip_path2 else None
+	# Checking user input
+	try:
+		if os.path.isdir(ip_path):
+			file_paths = [ip_path]
+		elif os.path.isfile(ip_path):
+			with open(ip_path, 'r') as file:
+				file_paths = [line.strip() for line in file if line.strip()]
+		else:
+			raise ValueError(f"'{ip_path}' is neither a valid directory nor a file containing paths.")
+	except ValueError as e:
+		print(f"> Error: {e}")
+		exit(1)
 
-	plot_spectrum(df_spect, ip_path1, df_ratio,single_plot=args.single)
+
+	for fpath in file_paths:
+		print(f"\n>>> Making spectrum plot for Obs: {fpath}")
+		try:
+			morder = ["logpar", "plaw", "bknpl"]
+			for m in morder:
+				scsv = os.path.join(fpath, f"{m}_spec.csv")
+				rcsv = os.path.join(fpath, f"{m}_ratio.csv")
+
+				df_spect = pd.read_csv(scsv)
+				df_ratio = pd.read_csv(rcsv)
+
+				plot_spectrum(df_spect, fpath, m, df_ratio)
+
+		
+		except Exception as e:
+			error_msg = f"- {fpath}:: {str(e)}\n"
+			log_error(error_msg)
+			print(f"> Error logged for {fpath}. Moving to next path.")
+			continue
+
