@@ -9,12 +9,14 @@ def check_file(filepath, pattern):
 	file_match = glob.glob(os.path.join(filepath, pattern))
 	return file_match[0] if file_match else None
 
-def log_error(errmsg):
-	with open('failed_obs.txt', 'a') as file:
+def log_error(errmsg, cpath):
+	with open(f"{cpath}/failed_obs.txt", "a") as file:
 		file.write(errmsg)
 	return
 
-def run_xspec(pha, rmf, arf, bkg, path, mname):
+def run_xspec(pha, path, mname):
+	AllData.clear()
+
 	ch = Xset.chatter
 	Xset.chatter = 0
 	lch = Xset.logChatter
@@ -24,11 +26,8 @@ def run_xspec(pha, rmf, arf, bkg, path, mname):
 
 	# Loading data
 	s1 = Spectrum(pha)
-	s1.response = rmf
-	s1.response.arf = arf
-	s1.background = bkg
 	AllData.ignore("bad")
-	s1.ignore("**-0.3,10.0-**")
+	s1.ignore("**-0.4,10.0-**")
 
 	# Define model and its parameters
 	nh_val = 0.0131
@@ -80,34 +79,35 @@ def run_xspec(pha, rmf, arf, bkg, path, mname):
 	dataR = np.column_stack((xVals, yVals, yErrs))
 	np.savetxt(f"{path}/{mname}_ratio.csv", dataR, delimiter=",", header="xVals,yVals,yErrs", comments="")
 
-	Xset.save(f"{path}/{mname}_model.xcm", info='m')
+	# Xset.save(f"{path}/{mname}_model.xcm", info='m')
 	AllData.clear()
 	Xset.closeLog()
 
 if __name__ == "__main__":
 	ip_path = sys.argv[1]
+	cd_path = os.getcwd()
+
 	with open(ip_path, 'r') as file:
 		file_paths = [line.strip() for line in file if line.strip()]
 
 	for fpath in file_paths:
 		print(f"\n>>> Running Xspec analysis for Obs: {fpath}")
-
+		
+		os.chdir(fpath)
+		
 		try:
 			if not os.path.exists(fpath):
 				raise FileNotFoundError(f"Path does not exist: {fpath}")
 
-			src_file = check_file(fpath, "*mpu7_sr.pha")
-			rmf_file = check_file(fpath, "*mpu7.rmf")
-			arf_file = check_file(fpath, "*mpu7.arf")
-			bkg_file = check_file(fpath, "*mpu7_bg.xcm")
+			src_file = check_file(fpath, "spec1.pha")
 
-			model1 = run_xspec(pha=src_file, rmf=rmf_file, arf=arf_file, bkg=bkg_file, path=fpath, mname="logpar")
-			model2 = run_xspec(pha=src_file, rmf=rmf_file, arf=arf_file, bkg=bkg_file, path=fpath, mname="powerlaw") 
-			model3 = run_xspec(pha=src_file, rmf=rmf_file, arf=arf_file, bkg=bkg_file, path=fpath, mname="bknpower")
+			model1 = run_xspec(pha=src_file, path=fpath, mname="logpar")
+			model2 = run_xspec(pha=src_file, path=fpath, mname="powerlaw") 
+			model3 = run_xspec(pha=src_file, path=fpath, mname="bknpower")
 
 		except Exception as e:
 			error_msg = f"- {fpath}:: {str(e)}\n"
-			log_error(error_msg)
+			log_error(error_msg, cd_path)
 			print(f"> Error: {e}")
 			print(f"> Error logged for {fpath}. Moving to next path.")
 			continue
