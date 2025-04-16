@@ -3,6 +3,7 @@ import sys
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.ticker import ScalarFormatter, LogLocator
+import traceback
 
 def plot_axsetup(ax, xlabel=None, ylabel=None):
 	"""
@@ -84,9 +85,10 @@ if __name__ == "__main__":
 
 				plot_spectrum(df_spect=df_spect, fpath=fpath, mname=m, df_ratio=df_ratio)
 		except Exception as e:
-			error_msg = f"- {fpath}:: {str(e)}\n"
+			tb = traceback.format_exc()
+			error_msg = f"- {fpath}:: {str(tb)}\n"
 			log_error(error_msg)
-			print(f"> Error: {e}")
+			print(f"> Error: {tb}")
 			print(f"> Error logged for {fpath}. Moving to next path.")
 			continue
 
