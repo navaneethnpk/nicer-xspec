@@ -38,18 +38,40 @@ def get_test_statistics(lines):
 		Dict: Extracted parameter data with value and error.
 	"""
 	ts_data = {}
-	num_pattern = r"\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b"
 
-	chi_val = re.findall(num_pattern, lines[-2])
-	dof_val = re.findall(num_pattern, lines[-1])
+	chi_line = next((line for line in lines if re.search(r"Test statistic", line)), None)
+	dof_line = next((line for line in lines if re.search(r"Null hypothesis", line)), None)
+
+	chi_val = re.findall(r"\d+\.\d+", chi_line)
+	dof_val = re.findall(r"\b\d+\b", dof_line)
 
 	if chi_val and dof_val:
 		ts_data["Chi-Squared"] = chi_val[0]
-		ts_data["DOF"] = dof_val[1]
+		ts_data["DOF"] = dof_val[-1]
 	else:
 		print(f"> Warning: test statistics values not found in the lines.")
 
 	return ts_data
+
+def get_flux_value(lines):
+	flux_data = {}
+
+	flux_line = next((line for line in lines if re.search(r"Model Flux", line)), None)
+	errr_line = next((line for line in lines if re.search(r"Error range", line)), None)
+
+	num_pattern = r"\b\d+\.\d+[eE][+-]\d+\b"
+
+	flux_val = re.findall(num_pattern, flux_line)
+	errr_val = re.findall(num_pattern, errr_line)
+
+	if flux_val and errr_val:
+		flux_data["Flux"] = flux_val[0]
+		flux_data["Flux_Err_Min"] = errr_val[0]
+		flux_data["Flux_Err_Max"] = errr_val[1]
+	else:
+		print(f"> Warning: flux values not found in the lines.")
+
+	return flux_data
 
 def read_xspec_log(loglist, opath):
 	"""
@@ -76,7 +98,7 @@ def read_xspec_log(loglist, opath):
 		for model, param in models.items():
 			if model in mcontent:
 				lines = mcontent.strip().split('\n')
-				model_data[model] = {"parameters": get_mparameters(lines, param), "test_statistics": get_test_statistics(lines)}
+				model_data[model] = {"parameters": get_mparameters(lines, param), "test_statistics": get_test_statistics(lines), "flux": get_flux_value(lines)}
 				break
 
 	# with open(f"{opath}/model_pms.yaml", 'w') as file:
@@ -113,6 +135,17 @@ def extract_ts(data):
 	tsdf = pd.DataFrame(ts_data, columns=["Model", "Chi2", "DOF", "RedChi2"])
 
 	return tsdf
+
+def extract_fx(data):
+	fx_data = []
+	for mname, minfo in data.items():
+		flux_val = float(minfo["flux"]["Flux"])
+		nerr_val = float(minfo["flux"]["Flux_Err_Min"])
+		perr_val = float(minfo["flux"]["Flux_Err_Max"])
+		fx_data.append([mname, flux_val, nerr_val, perr_val])
+	fxdf = pd.DataFrame(fx_data, columns=["Model", "Flux", "Flux_Err_Min", "Flux_Err_Max"])
+
+	return fxdf
 
 def process_df(df, morder):
 	"""
@@ -154,18 +187,24 @@ if __name__ == "__main__":
 			if not mdata:
 				raise ValueError("Model parameters were not collected successfully.")
 
+			# print(mdata)
+
 			# Get model parameter and test statistics as tables
 			mdf = extract_pm(mdata)
 			tdf = extract_ts(mdata)
+			fdf = extract_fx(mdata)
 			# Define model order and process DataFrames (Not really needed)
-			morder = ["logpar", "powerlaw", "bknpower"]
+			morder = ["powerlaw", "bknpower", "logpar"]
 			mdf = process_df(mdf, morder)
 			tdf = process_df(tdf, morder)
+			fdf = process_df(fdf, morder)
 			# Print and save the tables
 			print(f"\nThe model parameter table:\n{mdf}\n")
 			print(f"The model test statistics table:\n{tdf}\n")
+			print(f"The model flux table (ergs/cm^2/s):\n{fdf}\n")
 			mdf.to_csv(os.path.join(fpath, "model_pm.csv"), index=False)
 			tdf.to_csv(os.path.join(fpath, "model_ts.csv"), index=False)
+			fdf.to_csv(os.path.join(fpath, "model_fx.csv"), index=False)
 		except Exception as e:
 			error_msg = f"- {fpath}:: {str(e)}\n"
 			log_error(error_msg)
