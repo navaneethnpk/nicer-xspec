@@ -4,6 +4,7 @@ import sys
 import glob
 import numpy as np
 from xspec import *
+import traceback
 
 def check_file(filepath, pattern):
 	file_match = glob.glob(os.path.join(filepath, pattern))
@@ -56,7 +57,7 @@ def run_xspec(pha, path, mname):
 	Fit.perform()
 	Fit.show()
 
-	AllModels.calcFlux("0.4 10.0 err")
+	m1.calcFlux("0.4 10.0 err")
 
 	# Plotting
 	Plot.device = f"{path}/{mname}_plot.ps"
@@ -108,8 +109,10 @@ if __name__ == "__main__":
 			model3 = run_xspec(pha=src_file, path=fpath, mname="bknpower")
 
 		except Exception as e:
-			error_msg = f"- {fpath}:: {str(e)}\n"
+			tb = traceback.format_exc()
+			error_msg = f">>> {fpath}:: {str(e)}\n{tb}\n\n"
 			log_error(error_msg, cd_path)
 			print(f"> Error: {e}")
+			print(f"> Error: {tb}")
 			print(f"> Error logged for {fpath}. Moving to next path.")
 			continue
