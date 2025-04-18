@@ -3,7 +3,7 @@ import re
 import sys
 import glob
 import numpy as np
-from xspec import *
+from xspec import AllData, Xset, Spectrum, Model, Fit, AllModels, Plot
 import traceback
 
 def check_file(filepath, pattern):
@@ -57,7 +57,7 @@ def run_xspec(pha, path, mname):
 	Fit.perform()
 	Fit.show()
 
-	m1.calcFlux("0.4 10.0 err")
+	AllModels.calcFlux("0.4 10.0 err")
 
 	# Plotting
 	Plot.device = f"{path}/{mname}_plot.ps"
